@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="es" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gamer Chair Challenge</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;family=Orbitron:wght@400;700;900&amp;display=swap" rel="stylesheet">
+  <style>
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(2px, -2px); }
+            60% { transform: translate(-2px, -2px); }
+            80% { transform: translate(2px, 2px); }
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px #00ff88, 0 0 40px #00ff8855; }
+            50% { box-shadow: 0 0 30px #00ff88, 0 0 60px #00ff88aa; }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+        @keyframes pixel-rain {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(20px) scale(0.5); }
+        }
+        @keyframes bounce-in {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        #discountPopup {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #discountPopup > div {
+            animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .glitch-text {
+            animation: glitch 0.3s infinite;
+        }
+        .scanline::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(transparent, rgba(0,255,136,0.1), transparent);
+            animation: scanline 3s linear infinite;
+        }
+        .game-container {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        .floating {
+            animation: float 2s ease-in-out infinite;
+        }
+        body {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+    </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full bg-gray-950 text-white overflow-auto">
+  <div id="app" class="min-h-full w-full flex flex-col items-center justify-center p-4 relative">
+   <!-- Background Effects -->
+   <div class="fixed inset-0 overflow-hidden pointer-events-none">
+    <div class="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-gray-950 to-cyan-900/20"></div>
+    <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div><!-- Grid pattern -->
+    <div class="absolute inset-0" style="background-image: linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px); background-size: 50px 50px;"></div>
+   </div><!-- Title -->
+   <h1 id="game-title" class="pixel-font text-lg sm:text-2xl text-center mb-4 relative z-10" style="color: #00ff88; text-shadow: 0 0 10px #00ff88, 0 0 20px #00ff88;">GAMER CHAIR CHALLENGE</h1><!-- Score Display -->
+   <div class="flex gap-8 mb-4 relative z-10">
+    <div class="bg-gray-900/80 border-2 border-cyan-400 rounded-lg px-4 py-2 backdrop-blur-sm">
+     <span class="text-cyan-400 text-xs">PUNTOS</span>
+     <div id="score" class="pixel-font text-2xl text-white">
+      0
+     </div>
+    </div>
+    <div class="bg-gray-900/80 border-2 border-purple-400 rounded-lg px-4 py-2 backdrop-blur-sm">
+     <span class="text-purple-400 text-xs">MEJOR</span>
+     <div id="highscore" class="pixel-font text-2xl text-white">
+      0
+     </div>
+    </div>
+   </div><!-- Game Canvas Container -->
+   <div class="game-container relative rounded-2xl overflow-hidden scanline" style="border: 3px solid #00ff88;">
+    <canvas id="gameCanvas" class="block"></canvas><!-- Game Over Overlay -->
+    <div id="gameOverlay" class="absolute inset-0 bg-gray-950/95 flex flex-col items-center justify-center backdrop-blur-sm">
+     <div class="text-center">
+      <h2 id="overlay-title" class="pixel-font text-xl sm:text-3xl mb-2 glitch-text" style="color: #ff0055;">GAME OVER</h2>
+      <p id="overlay-message" class="text-gray-400 mb-4">¡Los glitches te atraparon!</p>
+      <p class="text-2xl mb-6">Puntos: <span id="finalScore" class="text-cyan-400 pixel-font">0</span></p><button id="restartBtn" class="pixel-font text-sm bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-400 hover:to-purple-400 text-white px-8 py-4 rounded-lg transform hover:scale-105 transition-all duration-200" style="box-shadow: 0 0 20px rgba(0,255,136,0.5);"> 🎮 JUGAR DE NUEVO </button>
+     </div>
+    </div><!-- Start Screen -->
+    <div id="startScreen" class="absolute inset-0 bg-gray-950/95 flex flex-col items-center justify-center backdrop-blur-sm">
+     <div class="text-center px-4">
+      <div class="text-6xl mb-4 floating">
+       🎮
+      </div>
+      <h2 class="pixel-font text-lg sm:text-2xl mb-4" style="color: #00ff88;">¿LISTO PARA JUGAR?</h2>
+      <p class="text-gray-400 mb-2 text-sm">Mueve al gamer para esquivar los glitches</p>
+      <p class="text-gray-500 mb-6 text-xs">⬅️ ➡️ Flechas o arrastra en móvil</p>
+      <div class="flex gap-4 justify-center mb-6 text-sm">
+       <div class="flex items-center gap-2">
+        <div class="w-4 h-4 bg-red-500 rounded" style="box-shadow: 0 0 10px #ff0055;"></div><span class="text-red-400">Glitch = ☠️</span>
+       </div>
+       <div class="flex items-center gap-2">
+        <div class="w-4 h-4 bg-cyan-400 rounded" style="box-shadow: 0 0 10px #00d4ff;"></div><span class="text-cyan-400">Pixel = +10</span>
+       </div>
+      </div><button id="startBtn" class="pixel-font text-sm bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-400 hover:to-cyan-400 text-white px-8 py-4 rounded-lg transform hover:scale-105 transition-all duration-200" style="box-shadow: 0 0 20px rgba(0,255,136,0.5);"> 🚀 INICIAR JUEGO </button>
+     </div>
+    </div><!-- Discount Code Popup -->
+    <div id="discountPopup" class="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
+     <div class="bg-gray-950/98 border-4 border-yellow-400 rounded-2xl p-8 backdrop-blur-sm text-center max-w-sm mx-4 animate-bounce" style="box-shadow: 0 0 40px rgba(250,204,21,0.6), inset 0 0 40px rgba(250,204,21,0.2);">
+      <div class="text-5xl mb-4">
+       🎁
+      </div>
+      <h3 class="pixel-font text-xl text-yellow-400 mb-2" style="text-shadow: 0 0 20px #ffc000;">¡DESCUENTO DESBLOQUEADO!</h3>
+      <p class="text-gray-300 mb-4 text-sm">Saca una captura y pásale a Visual</p>
+      <div class="bg-yellow-900/30 border-2 border-yellow-400 rounded-lg p-4 mb-4">
+       <p class="text-gray-400 text-xs mb-2">TU CÓDIGO</p>
+       <p id="discountCode" class="pixel-font text-3xl text-yellow-300 tracking-widest">000000</p>
+      </div>
+      <p class="text-gray-400 text-xs">El juego continúa... ¡sigue jugando!</p>
+     </div>
+    </div>
+   </div><!-- Instructions -->
+   <p class="text-gray-500 text-xs mt-4 text-center relative z-10">Esquiva los <span class="text-red-400">glitches rojos</span> • Recoge los <span class="text-cyan-400">píxeles azules</span></p>
+  </div>
+  <script>
+        // Default configuration
+        const defaultConfig = {
+            game_title: 'GAMER CHAIR CHALLENGE',
+            game_over_text: '¡Los glitches te atraparon!',
+            primary_color: '#00ff88',
+            secondary_color: '#0f172a',
+            accent_color: '#00d4ff',
+            text_color: '#ffffff',
+            danger_color: '#ff0055',
+            font_family: 'Orbitron'
+        };
+
+        // Initialize Element SDK
+        if (window.elementSdk) {
+            window.elementSdk.init({
+                defaultConfig,
+                onConfigChange: async (config) => {
+                    const titleEl = document.getElementById('game-title');
+                    const overlayMsg = document.getElementById('overlay-message');
+                    
+                    if (titleEl) {
+                        titleEl.textContent = config.game_title || defaultConfig.game_title;
+                        titleEl.style.color = config.primary_color || defaultConfig.primary_color;
+                    }
+                    if (overlayMsg) {
+                        overlayMsg.textContent = config.game_over_text || defaultConfig.game_over_text;
+                    }
+                    
+                    document.body.style.fontFamily = ${config.font_family || defaultConfig.font_family}, sans-serif;
+                },
+                mapToCapabilities: (config) => ({
+                    recolorables: [
+                        {
+                            get: () => config.secondary_color || defaultConfig.secondary_color,
+                            set: (value) => window.elementSdk.setConfig({ secondary_color: value })
+                        },
+                        {
+                            get: () => config.primary_color || defaultConfig.primary_color,
+                            set: (value) => window.elementSdk.setConfig({ primary_color: value })
+                        },
+                        {
+                            get: () => config.text_color || defaultConfig.text_color,
+                            set: (value) => window.elementSdk.setConfig({ text_color: value })
+                        },
+                        {
+                            get: () => config.accent_color || defaultConfig.accent_color,
+                            set: (value) => window.elementSdk.setConfig({ accent_color: value })
+                        },
+                        {
+                            get: () => config.danger_color || defaultConfig.danger_color,
+                            set: (value) => window.elementSdk.setConfig({ danger_color: value })
+                        }
+                    ],
+                    borderables: [],
+                    fontEditable: {
+                        get: () => config.font_family || defaultConfig.font_family,
+                        set: (value) => window.elementSdk.setConfig({ font_family: value })
+                    },
+                    fontSizeable: undefined
+                }),
+                mapToEditPanelValues: (config) => new Map([
+                    ['game_title', config.game_title || defaultConfig.game_title],
+                    ['game_over_text', config.game_over_text || defaultConfig.game_over_text]
+                ])
+            });
+        }
+
+        // Game Logic
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const highscoreEl = document.getElementById('highscore');
+        const finalScoreEl = document.getElementById('finalScore');
+        const gameOverlay = document.getElementById('gameOverlay');
+        const startScreen = document.getElementById('startScreen');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // Responsive canvas size
+        function resizeCanvas() {
+            const maxWidth = Math.min(400, window.innerWidth - 32);
+            const maxHeight = Math.min(550, window.innerHeight - 250);
+            canvas.width = maxWidth;
+            canvas.height = maxHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let score = 0;
+        let highScore = 0;
+        let gameActive = false;
+        let gameStarted = false;
+        let animationId = null;
+        let discountShown = false;
+
+        // Generate random 6-digit code
+        function generateDiscountCode() {
+            return Math.floor(Math.random() * 900000 + 100000).toString();
+        }
+
+        // Player (Gamer in chair)
+        const player = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 80,
+            w: 50,
+            h: 70,
+            speed: 8
+        };
+
+        const items = [];
+        const particles = [];
+
+        // Draw gamer in chair
+        function drawPlayer() {
+            const x = player.x;
+            const y = player.y;
+            
+            // Chair base/wheels
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.ellipse(x + 25, y + 65, 20, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Chair legs
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x + 25, y + 60);
+            ctx.lineTo(x + 10, y + 65);
+            ctx.moveTo(x + 25, y + 60);
+            ctx.lineTo(x + 40, y + 65);
+            ctx.moveTo(x + 25, y + 60);
+            ctx.lineTo(x + 25, y + 68);
+            ctx.stroke();
+            
+            // Chair seat
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x + 5, y + 40, 40, 20);
+            
+            // Chair back
+            ctx.fillStyle = '#16213e';
+            ctx.beginPath();
+            ctx.roundRect(x + 8, y + 10, 34, 35, 5);
+            ctx.fill();
+            
+            // Chair RGB strip (glowing effect)
+            const rgbGradient = ctx.createLinearGradient(x + 8, y + 10, x + 8, y + 45);
+            rgbGradient.addColorStop(0, '#ff0055');
+            rgbGradient.addColorStop(0.5, '#00ff88');
+            rgbGradient.addColorStop(1, '#00d4ff');
+            ctx.strokeStyle = rgbGradient;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(x + 8, y + 10, 34, 35, 5);
+            ctx.stroke();
+            
+            // Head
+            ctx.fillStyle = '#ffd5b4';
+            ctx.beginPath();
+            ctx.arc(x + 25, y + 5, 12, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Hair
+            ctx.fillStyle = '#2d1b00';
+            ctx.beginPath();
+            ctx.ellipse(x + 25, y - 2, 12, 8, 0, Math.PI, 0);
+            ctx.fill();
+            
+            // Headphones
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(x + 12, y + 5, 6, 0, Math.PI * 2);
+            ctx.arc(x + 38, y + 5, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Headphone band
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x + 25, y + 2, 15, Math.PI, 0);
+            ctx.stroke();
+            
+            // Headphone RGB
+            ctx.fillStyle = '#00ff88';
+            ctx.beginPath();
+            ctx.arc(x + 12, y + 5, 3, 0, Math.PI * 2);
+            ctx.arc(x + 38, y + 5, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Body/Torso
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(x + 15, y + 15, 20, 25);
+            
+            // Arms on armrests
+            ctx.fillStyle = '#ffd5b4';
+            ctx.fillRect(x + 5, y + 35, 10, 8);
+            ctx.fillRect(x + 35, y + 35, 10, 8);
+            
+            // Legs
+            ctx.fillStyle = '#2d3a4a';
+            ctx.fillRect(x + 15, y + 40, 8, 20);
+            ctx.fillRect(x + 27, y + 40, 8, 20);
+        }
+
+        // Draw glitch/pixel items
+        function drawItem(item) {
+            if (item.type === 'bad') {
+                // Glitch effect - corrupted pixels
+                ctx.save();
+                ctx.translate(item.x + item.w/2, item.y + item.h/2);
+                ctx.rotate(item.rotation || 0);
+                
+                // Glitchy squares
+                for (let i = 0; i < 5; i++) {
+                    ctx.fillStyle = rgba(255, 0, 85, ${0.8 - i * 0.15});
+                    const offset = (Math.random() - 0.5) * 4;
+                    ctx.fillRect(-item.w/2 + offset, -item.h/2 + offset, item.w, item.h);
+                }
+                
+                // Scanlines
+                ctx.strokeStyle = 'rgba(255, 0, 85, 0.5)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < item.h; i += 3) {
+                    ctx.beginPath();
+                    ctx.moveTo(-item.w/2, -item.h/2 + i);
+                    ctx.lineTo(item.w/2, -item.h/2 + i);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+                
+                // Glow effect
+                ctx.shadowColor = '#ff0055';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = 'transparent';
+                ctx.fillRect(item.x, item.y, item.w, item.h);
+                ctx.shadowBlur = 0;
+            } else {
+                // Good pixel - collectible
+                ctx.save();
+                
+                // Outer glow
+                ctx.shadowColor = '#00d4ff';
+                ctx.shadowBlur = 20;
+                
+                // Pixel cube effect
+                ctx.fillStyle = '#00d4ff';
+                ctx.fillRect(item.x + 2, item.y + 2, item.w - 4, item.h - 4);
+                
+                // Highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(item.x + 4, item.y + 4, (item.w - 8) / 2, (item.h - 8) / 2);
+                
+                // Inner pixel pattern
+                ctx.fillStyle = '#0099cc';
+                ctx.fillRect(item.x + item.w/2, item.y + item.h/2, item.w/4, item.h/4);
+                
+                ctx.restore();
+            }
+        }
+
+        // Spawn items
+        function spawnItem() {
+            const type = Math.random() < 0.6 ? 'bad' : 'good';
+            const size = type === 'bad' ? 25 + Math.random() * 15 : 20;
+            
+            items.push({
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                w: size,
+                h: size,
+                type: type,
+                speed: 2 + (score / 100) + Math.random() * 2,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.1
+            });
+        }
+
+        // Create particle effect
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 1,
+                    color: color,
+                    size: Math.random() * 6 + 2
+                });
+            }
+        }
+
+        // Update particles
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.03;
+                p.size *= 0.95;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        // Draw particles
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        // Check collision
+        function checkCollision(item) {
+            return item.x < player.x + player.w - 10 && 
+                   item.x + item.w > player.x + 10 &&
+                   item.y < player.y + player.h - 10 && 
+                   item.y + item.h > player.y + 10;
+        }
+
+        // Update game
+        function update() {
+            if (!gameActive) return;
+
+            // Update items
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.y += item.speed;
+                if (item.rotation !== undefined) {
+                    item.rotation += item.rotationSpeed;
+                }
+
+                // Check collision
+                if (checkCollision(item)) {
+                    if (item.type === 'good') {
+                        score += 10;
+                        scoreEl.textContent = score;
+                        createParticles(item.x + item.w/2, item.y + item.h/2, '#00d4ff', 10);
+                        
+                        // Check for discount milestone
+                        if (score === 2000 && !discountShown) {
+                            showDiscountPopup();
+                        }
+                    } else {
+                        gameOver();
+                        return;
+                    }
+                    items.splice(i, 1);
+                    continue;
+                }
+
+                // Remove if off screen
+                if (item.y > canvas.height) {
+                    items.splice(i, 1);
+                }
+            }
+
+            // Spawn new items
+            const spawnRate = Math.min(0.05, 0.02 + score / 1000);
+            if (Math.random() < spawnRate) {
+                spawnItem();
+            }
+
+            updateParticles();
+            draw();
+            animationId = requestAnimationFrame(update);
+        }
+
+        // Draw game
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid background
+            ctx.strokeStyle = 'rgba(0, 255, 136, 0.05)';
+            ctx.lineWidth = 1;
+            const gridSize = 30;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw items
+            items.forEach(item => drawItem(item));
+
+            // Draw particles
+            drawParticles();
+
+            // Draw player
+            drawPlayer();
+        }
+
+        // Show discount popup
+        function showDiscountPopup() {
+            discountShown = true;
+            const popup = document.getElementById('discountPopup');
+            const codeEl = document.getElementById('discountCode');
+            const code = generateDiscountCode();
+            
+            codeEl.textContent = code;
+            popup.style.pointerEvents = 'auto';
+            popup.style.opacity = '1';
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                popup.style.pointerEvents = 'none';
+                popup.style.opacity = '0';
+            }, 5000);
+        }
+
+        // Game over
+        function gameOver() {
+            gameActive = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            // Update high score
+            if (score > highScore) {
+                highScore = score;
+                highscoreEl.textContent = highScore;
+            }
+            
+            finalScoreEl.textContent = score;
+            createParticles(player.x + player.w/2, player.y + player.h/2, '#ff0055', 30);
+            
+            // Final draw with particles
+            draw();
+            drawParticles();
+            
+            gameOverlay.classList.remove('hidden');
+            gameOverlay.style.display = 'flex';
+        }
+
+        // Start game
+        function startGame() {
+            score = 0;
+            scoreEl.textContent = '0';
+            items.length = 0;
+            particles.length = 0;
+            player.x = canvas.width / 2 - 25;
+            player.y = canvas.height - 80;
+            gameActive = true;
+            gameStarted = true;
+            discountShown = false;
+            
+            startScreen.style.display = 'none';
+            gameOverlay.style.display = 'none';
+            
+            const popup = document.getElementById('discountPopup');
+            popup.style.pointerEvents = 'none';
+            popup.style.opacity = '0';
+            
+            update();
+        }
+
+        // Controls
+        let keys = {};
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (gameActive) {
+                if (keys['ArrowLeft'] || keys['a']) {
+                    player.x = Math.max(0, player.x - player.speed);
+                }
+                if (keys['ArrowRight'] || keys['d']) {
+                    player.x = Math.min(canvas.width - player.w, player.x + player.speed);
+                }
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Continuous movement
+        function handleMovement() {
+            if (gameActive) {
+                if (keys['ArrowLeft'] || keys['a']) {
+                    player.x = Math.max(0, player.x - player.speed);
+                }
+                if (keys['ArrowRight'] || keys['d']) {
+                    player.x = Math.min(canvas.width - player.w, player.x + player.speed);
+                }
+            }
+            requestAnimationFrame(handleMovement);
+        }
+        handleMovement();
+
+        // Touch controls
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (gameActive) {
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                player.x = Math.max(0, Math.min(canvas.width - player.w, 
+                    touch.clientX - rect.left - player.w / 2));
+            }
+        }, { passive: false });
+
+        // Mouse controls
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameActive) {
+                const rect = canvas.getBoundingClientRect();
+                player.x = Math.max(0, Math.min(canvas.width - player.w, 
+                    e.clientX - rect.left - player.w / 2));
+            }
+        });
+
+        // Button handlers
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+
+        // Initial draw
+        draw();
+    </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9db5081ae63da12e',t:'MTc3MzM0MTkyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
